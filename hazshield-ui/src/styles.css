@@ -147,3 +147,98 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
   .feed { border-left: none; border-top: 1px solid var(--etch-dim); max-height: 240px; }
   .cascade { display: none; }
 }
+
+/* ===== Simulation launcher + narration + legend =====
+   Appends to the existing control-room styles. Uses the same palette:
+   teal=live, amber=warn, red=critical, violet=planning. */
+
+/* the launcher sits top-right in the header area */
+.sim-launcher { display: flex; align-items: center; }
+.sim-cta {
+  font-family: var(--display, 'Barlow Condensed', sans-serif);
+  font-weight: 600; font-size: 15px; letter-spacing: .08em;
+  padding: 10px 20px; border-radius: 6px; cursor: pointer;
+  color: #0a0f1e; background: linear-gradient(180deg, #2dd4bf, #14b8a6);
+  border: none; box-shadow: 0 2px 12px rgba(45,212,191,.35);
+  transition: transform .1s, box-shadow .2s;
+}
+.sim-cta:hover { transform: translateY(-1px); box-shadow: 0 4px 18px rgba(45,212,191,.5); }
+
+/* the form popover */
+.sim-form {
+  position: absolute; top: 64px; right: 28px; z-index: 50;
+  width: 380px; background: #0d1526; border: 1px solid #334155;
+  border-radius: 10px; padding: 18px; box-shadow: 0 20px 60px rgba(0,0,0,.6);
+}
+.sim-form-head { display: flex; justify-content: space-between; align-items: center;
+  font-family: var(--display, sans-serif); font-weight: 600; letter-spacing: .1em;
+  text-transform: uppercase; font-size: 14px; color: #e2e8f0; margin-bottom: 14px; }
+.sim-x { background: none; border: none; color: #64748b; cursor: pointer; font-size: 15px; }
+.sim-x:hover { color: #e2e8f0; }
+
+.sim-presets { display: flex; flex-direction: column; gap: 8px; }
+.sim-preset { text-align: left; padding: 12px 14px; border-radius: 6px; cursor: pointer;
+  background: #111c30; border: 1px solid #334155; transition: border-color .15s, background .15s; }
+.sim-preset:hover { border-color: #64748b; }
+.sim-preset.sel { border-color: #2dd4bf; background: rgba(45,212,191,.08); }
+.sim-preset-label { display: block; font-family: var(--display, sans-serif); font-weight: 600;
+  font-size: 15px; color: #5eead4; letter-spacing: .04em; }
+.sim-preset-desc { display: block; font-size: 12px; color: #94a3b8; margin-top: 3px; line-height: 1.4; }
+
+.sim-advanced { display: flex; flex-direction: column; gap: 16px; }
+.sim-slider { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #cbd5e1; }
+.sim-slider b { color: #5eead4; font-family: var(--mono, monospace); }
+.sim-slider input[type=range] { width: 100%; accent-color: #2dd4bf; }
+.sim-slider-ends { font-size: 10px; color: #475569; display: flex; justify-content: space-between; }
+.sim-scenario { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #cbd5e1; }
+.sim-scenario select { background: #111c30; color: #e2e8f0; border: 1px solid #334155;
+  border-radius: 5px; padding: 7px; font-family: var(--mono, monospace); }
+.sim-bound-note { font-size: 11px; color: #64748b; font-style: italic; margin: 0; }
+
+.sim-form-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; }
+.sim-adv-toggle { background: none; border: none; color: #94a3b8; font-size: 12px; cursor: pointer; }
+.sim-adv-toggle:hover { color: #e2e8f0; }
+.sim-go { font-family: var(--display, sans-serif); font-weight: 600; letter-spacing: .06em;
+  padding: 9px 22px; border-radius: 6px; border: none; cursor: pointer;
+  color: #0a0f1e; background: #2dd4bf; }
+.sim-go:hover { background: #5eead4; }
+.sim-msg { margin-top: 10px; font-size: 12px; color: #fbbf24; }
+
+/* ===== the narration panel (replaces the button while running) ===== */
+.sim-narrate { width: 460px; background: linear-gradient(180deg, #0d1526, #111c30);
+  border: 1px solid #a78bfa; border-radius: 10px; padding: 14px 18px;
+  box-shadow: 0 0 30px rgba(167,139,250,.15); }
+.sim-narrate-head { display: flex; align-items: center; gap: 10px;
+  font-family: var(--display, sans-serif); font-weight: 600; letter-spacing: .14em;
+  font-size: 13px; color: #c4b5fd; }
+.sim-live-dot { width: 9px; height: 9px; border-radius: 50%; background: #a78bfa;
+  animation: simpulse 1.2s infinite; }
+.sim-phase-tag { margin-left: auto; font-size: 11px; padding: 2px 8px; border-radius: 4px;
+  background: rgba(167,139,250,.15); color: #c4b5fd; letter-spacing: .1em; }
+.sim-story { font-size: 13px; line-height: 1.5; color: #e2e8f0; margin: 10px 0; min-height: 40px; }
+.sim-bar { height: 5px; background: #1e293b; border-radius: 3px; overflow: hidden; }
+.sim-bar-fill { height: 100%; background: linear-gradient(90deg, #f59e0b, #ff4d3a);
+  transition: width 1s linear; }
+.sim-meta { font-size: 11px; color: #64748b; margin-top: 6px; font-family: var(--mono, monospace); }
+
+.sim-cooldown { display: flex; align-items: center; gap: 10px; font-size: 13px; color: #94a3b8;
+  padding: 10px 18px; background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.3);
+  border-radius: 8px; }
+.sim-cd-dot { width: 8px; height: 8px; border-radius: 50%; background: #f59e0b; }
+
+/* ===== legend ===== */
+.legend { display: flex; gap: 18px; align-items: center; font-size: 11px; color: #94a3b8; }
+.legend-item { display: flex; align-items: center; gap: 6px; letter-spacing: .05em; }
+.lg { width: 12px; height: 12px; border-radius: 3px; display: inline-block; border: 1px solid; }
+.lg-quiet { background: #111c30; border-color: #334155; }
+.lg-warn { background: rgba(245,158,11,.2); border-color: #f59e0b; }
+.lg-crit { background: rgba(255,77,58,.25); border-color: #ff4d3a; }
+.lg-plan { background: rgba(167,139,250,.2); border-color: #a78bfa; }
+
+@keyframes simpulse { 0%,100% { opacity: .4; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .sim-live-dot { animation: none; } }
+
+/* site heading row: name on the left, legend on the right */
+.site-head { display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px; }
+.site-head .site-name { margin-bottom: 0; }

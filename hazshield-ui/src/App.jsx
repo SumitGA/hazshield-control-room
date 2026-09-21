@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useLive } from './useLive.js'
+import { SimLauncher, Legend } from './SimLauncher.jsx'
 
 // severity/state -> annunciator lamp class
 function lamp(zoneEpisodes) {
@@ -42,7 +43,10 @@ function Wall({ topology, episodes, flashes, lampTest, onPick }) {
     <div className="wall">
       {Object.entries(bySite).map(([site, zones]) => (
         <section key={site} className="site">
-          <h2 className="site-name">{site}</h2>
+	  <div className="site-head">
+            <h2 className="site-name">{site}</h2>
+            <Legend />
+          </div>
           <div className="tiles">
             {zones.map((z) => {
               const eps = epByZone[z.zone_id] || []
@@ -189,6 +193,7 @@ export default function App() {
       <header className="head">
         <h1 className="wordmark">HAZSHIELD <span className="wordmark-sub">CONTROL ROOM</span></h1>
         <Cascade stats={stats} />
+	<SimLauncher />
         <div className={`link ${connected ? 'up' : 'down'}`}>
           <span className="link-dot" />{connected ? 'LIVE' : 'RECONNECTING'}
         </div>
