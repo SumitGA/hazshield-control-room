@@ -80,6 +80,20 @@ FROM isolation_plans GROUP BY model, status ORDER BY n DESC
 """
 
 
+RECENT_PLANS_SQL = """
+SELECT p.plan_id, p.alarm_id, p.model, p.status::text, p.latency_ms,
+       p.plan, p.created_at,
+       z.name AS zone_name, s.kind::text AS sensor_kind
+FROM isolation_plans p
+JOIN alarm_events a ON a.alarm_id = p.alarm_id
+JOIN zone z ON z.zone_id = a.zone_id
+JOIN sensor s ON s.sensor_id = a.sensor_id
+WHERE p.status IN ('ready','fallback') AND p.plan IS NOT NULL
+ORDER BY p.created_at DESC
+LIMIT 8
+"""
+
+
 class Service:
     def __init__(self):
         self.redis_url = os.environ.get("HAZ_REDIS_URL", "redis://127.0.0.1:6379/0")
@@ -160,6 +174,14 @@ class Service:
         d = dict(row)
         d["plan"] = json.loads(d["plan"]) if d["plan"] else None
         return web.json_response(d, dumps=lambda o: json.dumps(o, default=str))
+
+    async def recent_plans(self, request):
+        async with self.pool.acquire() as c:
+            rows = [dict(r) for r in await c.fetch(RECENT_PLANS_SQL)]
+        for r in rows:
+            if isinstance(r.get("plan"), str):
+                r["plan"] = json.loads(r["plan"])
+        return web.json_response(rows, dumps=lambda o: json.dumps(o, default=str))
 
     async def stats(self, request):
         r = aredis.from_url(self.redis_url, decode_responses=True)
