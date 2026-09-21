@@ -13,7 +13,7 @@ rm -rf "$SRC/dist" && cp -r "$UI/dist" "$SRC/dist"
 
 echo "-> shipping"
 ssh "$HOST" "sudo mkdir -p $DEST && sudo chown -R \$(whoami) $DEST"
-scp -qr "$SRC/app.py" "$SRC/requirements.txt" "$SRC/dist" "$HOST:$DEST/"
+scp -qr "$SRC"/*.py "$SRC/requirements.txt" "$SRC/dist" "$HOST:$DEST/"
 ssh "$HOST" bash -s << 'REMOTE'
 set -e
 cd /opt/hazshield-stream

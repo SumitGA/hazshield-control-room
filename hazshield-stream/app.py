@@ -87,13 +87,17 @@ class Service:
                                      "postgresql://hazshield:devpw@127.0.0.1/hazshield")
         self.port = int(os.environ.get("HAZ_HTTP_PORT", "8010"))
         self.clients: set[asyncio.Queue] = set()
-        self.sim = SimController(self, redis_url, self.pg_dsn)
+        self.sim = SimController(self.redis_url, self.pg_dsn)
 
     async def sim_status(self, request):
         return web.json_response(await self.sim.status())
 
     async def sim_start(self, request):
-        ok, payload = await self.sim.start()
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        ok, payload = await self.sim_start(body)
         return web.json_response(payload, status=(202 if ok else 429))
 
     # ---- SSE fan-out -------------------------------------------------
