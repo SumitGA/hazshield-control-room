@@ -188,6 +188,7 @@ class Service:
         app.router.add_get("/events", self.events)
         app.router.add_get("/api/topology", self.topology)
         app.router.add_get("/api/episodes", self.episodes)
+        app.router.add_get("/api/plans/recent", self.recent_plans)
         app.router.add_get("/api/plans/{alarm_id}", self.plan)
         app.router.add_get("/api/stats", self.stats)
         app.router.add_get("/api/sim/status", self.sim_status)

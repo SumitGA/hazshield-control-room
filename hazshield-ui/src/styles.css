@@ -344,3 +344,41 @@ body {
 /* drawer + wordmark warmer */
 .drawer { background: var(--panel-2) !important; border-left: 1px solid var(--etch) !important; }
 .wordmark-sub { color: var(--muted) !important; }
+
+/* ===== FIXES: tile padding for the VIEW PLAN hint + plan card polish ===== */
+.tile.warn, .tile.critical {
+  padding-bottom: 34px !important;
+  position: relative;
+}
+.tile.warn::after, .tile.critical::after {
+  content: 'view plan →';
+  position: absolute; bottom: 12px; left: 18px;
+  font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--amber); opacity: .8; pointer-events: none;
+}
+.tile.critical::after { color: var(--red); }
+.tile-meta { margin-bottom: 4px !important; }
+.tile.warn {
+  border: 1px solid #3a3745 !important;
+  border-left: 3px solid var(--amber) !important;
+  box-shadow: 0 0 0 1px rgba(242,165,74,.15) !important;
+}
+.tile.critical {
+  border: 1px solid #3a3745 !important;
+  border-left: 3px solid var(--red) !important;
+  box-shadow: 0 0 14px rgba(242,99,78,.25) !important;
+  animation: crit-pulse 1.6s ease-in-out infinite;
+}
+@keyframes crit-pulse {
+  0%,100% { box-shadow: 0 0 8px rgba(242,99,78,.2); }
+  50% { box-shadow: 0 0 18px rgba(242,99,78,.4); }
+}
+.tile.picked, button.tile:focus-visible {
+  outline: 2px solid var(--violet) !important; outline-offset: 2px;
+}
+.plans-panel { padding: 22px 34px 30px !important; }
+.plan-cards { gap: 14px !important; margin-top: 14px !important; }
+.plan-card { padding: 16px 18px !important; }
+@media (prefers-reduced-motion: reduce) {
+  .tile.critical { animation: none; }
+}
