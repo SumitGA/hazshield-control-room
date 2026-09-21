@@ -242,3 +242,105 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 .site-head { display: flex; align-items: center; justify-content: space-between;
   margin-bottom: 10px; }
 .site-head .site-name { margin-bottom: 0; }
+
+
+/* ============================================================
+   WARM THEME OVERRIDE + Plans panel + clearer tiles.
+   Append to styles.css AFTER everything else so it wins.
+   Shifts cold blue-black -> warm charcoal, softer borders,
+   more breathing room, warmer accents.
+   ============================================================ */
+
+:root {
+  /* warm charcoal instead of blue-black */
+  --ink: #16151a;
+  --panel: #1e1c24;
+  --panel-2: #26242e;
+  --etch: #8b8794;
+  --etch-dim: #423f4d;
+  --text: #ece9f0;
+  --muted: #a9a4b5;
+  /* warmer accents: keep teal but soften; amber warmer; red less harsh */
+  --teal: #34d3b8;
+  --amber: #f2a54a;
+  --red: #f2634e;
+  --violet: #b39 df6;
+}
+/* fix the accidental space in violet above */
+:root { --violet: #b39df6; }
+
+body {
+  background:
+    radial-gradient(1200px 700px at 75% -15%, #221f2b 0%, #16151a 55%) !important;
+}
+.room {
+  background:
+    radial-gradient(1100px 640px at 78% -12%, #241f2e 0%, #16151a 60%) !important;
+}
+
+/* more breathing room in the header */
+.head { padding: 20px 34px !important; gap: 40px !important;
+  border-bottom: 1px solid var(--etch-dim) !important;
+  background: rgba(30,28,36,.55) !important; }
+
+/* softer tiles, warmer, more padding */
+.tile {
+  background: linear-gradient(180deg, #232029 0%, #1c1a22 100%) !important;
+  border: 1px solid #3a3745 !important;
+  border-radius: 10px !important;
+  padding: 18px 18px !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.03), 0 2px 8px rgba(0,0,0,.3) !important;
+}
+.tile:hover { border-color: var(--etch) !important; transform: translateY(-1px); }
+.tile-name { color: var(--muted) !important; }
+.tile.quiet .tile-name { color: #7d7889 !important; }
+
+/* tiles WITH an episode: clearer they're clickable */
+.tile.warn, .tile.critical { cursor: pointer !important; }
+.tile.warn::after, .tile.critical::after {
+  content: 'view plan →'; position: absolute; bottom: 10px; right: 14px;
+  font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--amber); opacity: .75;
+}
+.tile.critical::after { color: var(--red); }
+.tile.warn { border-color: var(--amber) !important; }
+.tile.critical { border-color: var(--red) !important; }
+
+/* the wall: more gap, warmer */
+.tiles { gap: 14px !important; }
+.wall { padding: 26px 34px !important; }
+.site-name { color: var(--etch) !important; }
+
+/* live feed + board warmer */
+.feed { background: rgba(30,28,36,.4) !important; border-left: 1px solid var(--etch-dim) !important; }
+.feed-row { border-bottom: 1px dotted var(--etch-dim) !important; }
+.board { border-top: 1px solid var(--etch-dim) !important; }
+
+/* ===== Latest Plans panel ===== */
+.plans-panel { padding: 20px 34px 28px; border-top: 1px solid var(--etch-dim); }
+.plan-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px; margin-top: 12px; }
+.plan-card { text-align: left; padding: 14px 16px; border-radius: 10px; cursor: pointer;
+  background: linear-gradient(180deg, #232029, #1c1a22); border: 1px solid #3a3745;
+  transition: border-color .15s, transform .1s; }
+.plan-card:hover { border-color: var(--violet); transform: translateY(-2px); }
+.plan-card.cache { border-left: 3px solid var(--teal); }
+.plan-card.rulebook { border-left: 3px solid var(--amber); }
+.plan-card:not(.cache):not(.rulebook) { border-left: 3px solid var(--violet); }
+.plan-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.plan-card-zone { font-family: var(--display, sans-serif); font-weight: 600; font-size: 14px;
+  color: var(--text); letter-spacing: .03em; flex: 1; }
+.plan-card-lat { font-size: 11px; color: var(--muted); font-family: var(--mono, monospace); }
+.plan-card-summary { font-size: 12px; line-height: 1.45; color: var(--muted); margin: 0 0 8px; }
+.plan-card-steps { font-size: 11px; color: var(--violet); letter-spacing: .05em; }
+
+/* model badge warmer */
+.model-badge { font-family: var(--display, sans-serif); text-transform: uppercase;
+  letter-spacing: .1em; font-weight: 600; font-size: 12px; padding: 2px 9px;
+  border-radius: 4px; border: 1px solid var(--violet); color: var(--violet); }
+.model-badge.cache { border-color: var(--teal); color: var(--teal); }
+.model-badge.rulebook { border-color: var(--amber); color: var(--amber); }
+
+/* drawer + wordmark warmer */
+.drawer { background: var(--panel-2) !important; border-left: 1px solid var(--etch) !important; }
+.wordmark-sub { color: var(--muted) !important; }
