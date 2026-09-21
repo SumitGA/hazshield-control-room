@@ -97,7 +97,7 @@ class Service:
             body = await request.json()
         except Exception:
             body = {}
-        ok, payload = await self.sim_start(body)
+        ok, payload = await self.sim.start(body)
         return web.json_response(payload, status=(202 if ok else 429))
 
     # ---- SSE fan-out -------------------------------------------------
