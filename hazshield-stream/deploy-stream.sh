@@ -1,14 +1,14 @@
 #!/bin/bash
 # Deploy the stream service + built UI to the compute VM.
 set -euo pipefail
-HOST="ubuntu@hazshield-compute"; DEST="/opt/hazshield-stream"
+HOST="ubuntu@hazshield-edge"; DEST="/opt/hazshield-stream"
 SRC="$(cd "$(dirname "$0")" && pwd)"
 UI="$SRC/../hazshield-ui"
 
 command -v git >/dev/null && [ -n "$(git -C "$SRC" status --porcelain 2>/dev/null)" ] && echo "WARN: deploying dirty tree"
 
 echo "-> building UI"
-(cd "$UI" && npm run build --silent)
+(cd "$UI" && npm install && npm run build --silent)
 rm -rf "$SRC/dist" && cp -r "$UI/dist" "$SRC/dist"
 
 echo "-> shipping"

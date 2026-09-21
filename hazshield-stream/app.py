@@ -27,6 +27,7 @@ from pathlib import Path
 import asyncpg
 import redis.asyncio as aredis
 from aiohttp import web
+from sim_control import SimController
 
 CHANNEL = "hazshield:violations:live"
 STREAM = "hazshield:violations"
@@ -86,6 +87,14 @@ class Service:
                                      "postgresql://hazshield:devpw@127.0.0.1/hazshield")
         self.port = int(os.environ.get("HAZ_HTTP_PORT", "8010"))
         self.clients: set[asyncio.Queue] = set()
+        self.sim = SimController(self, redis_url, self.pg_dsn)
+
+    async def sim_status(self, request):
+        return web.json_response(await self.sim.status())
+
+    async def sim_start(self, request):
+        ok, payload = await self.sim.start()
+        return web.json_response(payload, status=(202 if ok else 429))
 
     # ---- SSE fan-out -------------------------------------------------
     async def pump(self):
@@ -177,6 +186,8 @@ class Service:
         app.router.add_get("/api/episodes", self.episodes)
         app.router.add_get("/api/plans/{alarm_id}", self.plan)
         app.router.add_get("/api/stats", self.stats)
+        app.router.add_get("/api/sim/status", self.sim_status)
+        app.router.add_post("/api/sim/start", self.sim_start)
         if DIST.exists():
             app.router.add_get("/", lambda r: web.FileResponse(DIST / "index.html"))
             app.router.add_static("/assets", DIST / "assets")
