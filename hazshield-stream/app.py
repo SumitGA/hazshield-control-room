@@ -1,23 +1,21 @@
-"""HazShield stream service — Phase 4.
+"""HazShield stream service — Phase 4 + Phase A (operator auth).
 
-The control room's single origin: relays the live violation firehose
-as Server-Sent Events and answers REST queries for topology, episodes,
-plans, and the ledger. Serves the built SPA from ./dist.
+The control room's origin: relays the live violation firehose as SSE,
+answers REST queries for topology/episodes/plans/ledger, serves the SPA,
+triggers bounded simulations, and (Phase A) authenticates operators.
 
 Positions:
 
-1. SSE, NOT WEBSOCKETS. The control room only listens; the plant never
-   takes commands from a browser. One-directional wants the simpler
-   protocol: EventSource reconnects itself, plays nice with proxies
-   and the Cloudflare tunnel, and is debuggable with curl.
+1. SSE, NOT WEBSOCKETS. The control room only listens for live data;
+   EventSource reconnects itself and is debuggable with curl.
 
-2. THE SERVICE OWNS NO STATE. It relays pub/sub and reads Postgres.
-   Kill it, restart it, run two of them: nothing is lost, because
-   nothing lives here. Same cattle principle as the workers.
+2. THE SERVICE OWNS NO STATE (that it can't rebuild). It relays pub/sub
+   and reads Postgres. Sessions live in Redis, not here.
 
-3. READ-ONLY BY CONSTRUCTION. Every DB statement is SELECT. The
-   dashboard cannot ack, clear, or mutate. A public portfolio URL
-   must not be a control surface.
+3. THE OBSERVE/ACT BOUNDARY. Reads are public. ACTIONS (Phase B+) require
+   an authenticated operator. Auth is server-side sessions in Redis +
+   httpOnly cookies, NOT JWTs — a safety control surface wants instant
+   revocability over statelessness, and we already run Redis.
 """
 import asyncio
 import json
@@ -28,6 +26,7 @@ import asyncpg
 import redis.asyncio as aredis
 from aiohttp import web
 from sim_control import SimController
+from auth import Sessions, verify_password, COOKIE_NAME
 
 CHANNEL = "hazshield:violations:live"
 STREAM = "hazshield:violations"
@@ -79,7 +78,6 @@ SELECT model, status::text, count(*)::int AS n,
 FROM isolation_plans GROUP BY model, status ORDER BY n DESC
 """
 
-
 RECENT_PLANS_SQL = """
 SELECT p.plan_id, p.alarm_id, p.model, p.status::text, p.latency_ms,
        p.plan, p.created_at,
@@ -93,6 +91,11 @@ ORDER BY p.created_at DESC
 LIMIT 8
 """
 
+# ---- Phase A: auth SQL ----
+OPERATOR_BY_NAME_SQL = ("SELECT operator_id, username, display_name, role, pw_hash "
+                        "FROM operator WHERE username = $1")
+TOUCH_LOGIN_SQL = "UPDATE operator SET last_login = now() WHERE operator_id = $1"
+
 
 class Service:
     def __init__(self):
@@ -102,7 +105,9 @@ class Service:
         self.port = int(os.environ.get("HAZ_HTTP_PORT", "8010"))
         self.clients: set[asyncio.Queue] = set()
         self.sim = SimController(self.redis_url, self.pg_dsn)
+        self.sessions = Sessions(self.redis_url)   # Phase A
 
+    # ---- sim ----
     async def sim_status(self, request):
         return web.json_response(await self.sim.status())
 
@@ -114,9 +119,48 @@ class Service:
         ok, payload = await self.sim.start(body)
         return web.json_response(payload, status=(202 if ok else 429))
 
-    # ---- SSE fan-out -------------------------------------------------
+    # ---- Phase A: auth ----
+    async def _current_operator(self, request):
+        """Who is this request from? Reads the session cookie -> Redis.
+        Returns the operator dict or None. Every protected endpoint (B+)
+        will call this and 401 if it's None."""
+        token = request.cookies.get(COOKIE_NAME)
+        return await self.sessions.get(token)
+
+    async def login(self, request):
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        username = (body.get("username") or "").strip().lower()
+        password = body.get("password") or ""
+        async with self.pool.acquire() as c:
+            row = await c.fetchrow(OPERATOR_BY_NAME_SQL, username)
+        if not row or not verify_password(password, row["pw_hash"]):
+            return web.json_response({"error": "invalid credentials"}, status=401)
+        operator = {k: (str(v) if k == "operator_id" else v)
+                    for k, v in dict(row).items() if k != "pw_hash"}
+        token = await self.sessions.create(operator)
+        async with self.pool.acquire() as c:
+            await c.execute(TOUCH_LOGIN_SQL, row["operator_id"])
+        resp = web.json_response({"ok": True, "operator": operator})
+        resp.set_cookie(COOKIE_NAME, token, httponly=True, secure=True,
+                        samesite="Lax", max_age=43200, path="/")
+        return resp
+
+    async def logout(self, request):
+        token = request.cookies.get(COOKIE_NAME)
+        await self.sessions.destroy(token)
+        resp = web.json_response({"ok": True})
+        resp.del_cookie(COOKIE_NAME, path="/")
+        return resp
+
+    async def me(self, request):
+        op = await self._current_operator(request)
+        return web.json_response({"operator": op})
+
+    # ---- SSE fan-out ----
     async def pump(self):
-        """One pub/sub subscription feeding N connected browsers."""
         while True:
             try:
                 r = aredis.from_url(self.redis_url, decode_responses=True)
@@ -126,10 +170,10 @@ class Service:
                     if msg["type"] != "message":
                         continue
                     for q in list(self.clients):
-                        if q.qsize() < 500:      # slow browser? drop, don't block
+                        if q.qsize() < 500:
                             q.put_nowait(msg["data"])
             except Exception:
-                await asyncio.sleep(2)           # redis hiccup: reconnect
+                await asyncio.sleep(2)
 
     async def events(self, request):
         resp = web.StreamResponse(headers={
@@ -153,7 +197,7 @@ class Service:
             self.clients.discard(q)
         return resp
 
-    # ---- REST --------------------------------------------------------
+    # ---- REST reads ----
     async def topology(self, request):
         async with self.pool.acquire() as c:
             zones = [dict(r) for r in await c.fetch(TOPOLOGY_SQL)]
@@ -189,8 +233,7 @@ class Service:
         await r.aclose()
         async with self.pool.acquire() as c:
             ledger = [dict(x) for x in await c.fetch(LEDGER_SQL)]
-            episodes = await c.fetchval(
-                "SELECT count(*) FROM alarm_events")
+            episodes = await c.fetchval("SELECT count(*) FROM alarm_events")
             open_now = await c.fetchval(
                 "SELECT count(*) FROM alarm_events WHERE state <> 'cleared'")
             plans = await c.fetchval("SELECT count(*) FROM isolation_plans")
@@ -202,7 +245,7 @@ class Service:
             "episodes_open": open_now, "plans_total": plans,
             "generations": gens, "ledger": ledger})
 
-    # ---- lifecycle -----------------------------------------------------
+    # ---- lifecycle ----
     async def start(self):
         self.pool = await asyncpg.create_pool(self.pg_dsn, min_size=1, max_size=4)
         asyncio.get_event_loop().create_task(self.pump())
@@ -215,6 +258,10 @@ class Service:
         app.router.add_get("/api/stats", self.stats)
         app.router.add_get("/api/sim/status", self.sim_status)
         app.router.add_post("/api/sim/start", self.sim_start)
+        # Phase A: auth
+        app.router.add_post("/api/auth/login", self.login)
+        app.router.add_post("/api/auth/logout", self.logout)
+        app.router.add_get("/api/auth/me", self.me)
         if DIST.exists():
             app.router.add_get("/", lambda r: web.FileResponse(DIST / "index.html"))
             app.router.add_static("/assets", DIST / "assets")

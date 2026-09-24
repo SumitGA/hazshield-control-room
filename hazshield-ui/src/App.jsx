@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react'
 import { useLive } from './useLive.js'
 import { SimLauncher, Legend } from './SimLauncher.jsx'
 import { PlansPanel } from './PlansPanel.jsx'
+import { AuthBar } from './AuthBar.jsx'
+import { useAuth } from './useAuth.js'
 
 // severity/state -> annunciator lamp class
 function lamp(zoneEpisodes) {
@@ -183,6 +185,7 @@ function PlanDrawer({ episode, onClose }) {
 
 export default function App() {
   const { connected, feed, flashes, episodes, stats, topology } = useLive()
+  const { operator, login, logout } = useAuth()
   const [picked, setPicked] = useState(null)
   const [lampTest, setLampTest] = useState(true)
   useEffect(() => {                       // power-up lamp test, once
@@ -195,6 +198,7 @@ export default function App() {
         <h1 className="wordmark">HAZSHIELD <span className="wordmark-sub">CONTROL ROOM</span></h1>
         <Cascade stats={stats} />
 	<SimLauncher />
+        <AuthBar operator={operator} login={login} logout={logout} />
         <div className={`link ${connected ? 'up' : 'down'}`}>
           <span className="link-dot" />{connected ? 'LIVE' : 'RECONNECTING'}
         </div>

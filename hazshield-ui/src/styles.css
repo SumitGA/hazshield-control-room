@@ -382,3 +382,34 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .tile.critical { animation: none; }
 }
+
+/* ===== Auth bar + login modal ===== */
+.authbar { display: flex; align-items: center; gap: 12px; }
+.auth-who { display: flex; align-items: center; gap: 8px; }
+.auth-name { font-family: var(--display, sans-serif); font-weight: 600; font-size: 14px; color: var(--text); }
+.auth-role { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; padding: 2px 8px;
+  border-radius: 4px; border: 1px solid var(--etch-dim); color: var(--muted); }
+.auth-role.supervisor { border-color: var(--violet); color: var(--violet); }
+.auth-logout, .auth-login-cta { font-family: var(--display, sans-serif); font-size: 12px;
+  letter-spacing: .08em; text-transform: uppercase; padding: 6px 14px; border-radius: 5px;
+  cursor: pointer; background: none; border: 1px solid var(--etch-dim); color: var(--muted); }
+.auth-login-cta { border-color: var(--teal); color: var(--teal); }
+.auth-logout:hover, .auth-login-cta:hover { border-color: var(--text); color: var(--text); }
+.auth-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.6);
+  display: flex; align-items: center; justify-content: center; z-index: 100; }
+.auth-modal { width: 340px; background: var(--panel-2); border: 1px solid var(--etch);
+  border-radius: 12px; padding: 22px; display: flex; flex-direction: column; gap: 14px;
+  box-shadow: 0 24px 70px rgba(0,0,0,.6); }
+.auth-modal-head { display: flex; justify-content: space-between; align-items: center;
+  font-family: var(--display, sans-serif); font-weight: 600; letter-spacing: .1em;
+  text-transform: uppercase; font-size: 14px; color: var(--text); }
+.auth-x { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 15px; }
+.auth-field { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--muted); }
+.auth-field input { background: var(--panel); border: 1px solid var(--etch-dim); border-radius: 6px;
+  padding: 9px 11px; color: var(--text); font-family: var(--mono, monospace); font-size: 14px; }
+.auth-field input:focus { outline: none; border-color: var(--teal); }
+.auth-err { font-size: 12px; color: var(--red); }
+.auth-submit { font-family: var(--display, sans-serif); font-weight: 600; letter-spacing: .06em;
+  padding: 10px; border-radius: 6px; border: none; cursor: pointer; color: #0a0f1e; background: var(--teal); }
+.auth-submit:disabled { opacity: .6; cursor: default; }
+.auth-note { font-size: 11px; color: var(--etch); font-style: italic; margin: 0; text-align: center; }
