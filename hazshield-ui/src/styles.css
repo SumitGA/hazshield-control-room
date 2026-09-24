@@ -413,3 +413,36 @@ body {
   padding: 10px; border-radius: 6px; border: none; cursor: pointer; color: #0a0f1e; background: var(--teal); }
 .auth-submit:disabled { opacity: .6; cursor: default; }
 .auth-note { font-size: 11px; color: var(--etch); font-style: italic; margin: 0; text-align: center; }
+
+.sim-gated { font-size: 12px; color: var(--muted); font-style: italic;
+  padding: 8px 14px; border: 1px dashed var(--etch-dim); border-radius: 6px; }
+
+/* ===== header layout fix: prevent overflow/squeeze during sim ===== */
+.head { flex-wrap: wrap !important; row-gap: 12px !important; }
+/* the sim narration panel shouldn't be inline in the header row —
+   let it take its own full-width line below the header controls */
+.head .sim-narrate { flex-basis: 100%; order: 10; width: auto !important; }
+/* keep AuthBar from being squeezed — it holds its size */
+.authbar { flex-shrink: 0; }
+.cascade { flex-shrink: 0; }
+/* sim launcher (button/gated state) shouldn't grow and shove things */
+.sim-launcher { flex-shrink: 0; }
+
+/* ===== keep the live feed from pushing the plans panel down ===== */
+/* the feed panel: fixed max height, scrolls internally */
+.feed {
+  max-height: 60vh !important;
+  overflow: hidden !important;
+  display: flex;
+  flex-direction: column;
+}
+.feed ul {
+  overflow-y: auto;
+  flex: 1;
+  margin: 0;
+  min-height: 0;   /* let it shrink inside the flex column */
+}
+/* the main grid row shouldn't stretch with feed content */
+.main { align-items: start !important; }
+/* ensure the plans panel keeps its place regardless of feed length */
+.plans-panel { min-height: 0; }

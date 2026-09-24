@@ -1,33 +1,54 @@
-// The control room's nervous system: one SSE subscription for the
-// violation firehose, slow polls for the durable truth (episodes,
-// stats). Live paints the tiles; polls keep the board honest.
+// The control room's nervous system. Live feed polls /api/violations/recent
+// (SSE is buffered by Cloudflare, so we poll — reliable through the CDN).
+// Slow polls for the durable truth (episodes, stats, topology).
 import { useEffect, useRef, useState } from 'react'
 
 export function useLive() {
-  const [connected, setConnected] = useState(false)
+  const [connected, setConnected] = useState(true)
   const [feed, setFeed] = useState([])            // capped ticker
   const [flashes, setFlashes] = useState({})      // zone_id -> ts of last hit
   const [episodes, setEpisodes] = useState([])
   const [stats, setStats] = useState(null)
   const [topology, setTopology] = useState(null)
-  const seq = useRef(0)
+  const seenIds = useRef(new Set())               // de-dupe by stream id
 
-  useEffect(() => {                               // SSE
-    const es = new EventSource('/events')
-    es.onopen = () => setConnected(true)
-    es.onerror = () => setConnected(false)        // EventSource retries itself
-    es.addEventListener('violation', (e) => {
+  // ---- live feed: poll recent violations ----
+  useEffect(() => {
+    let alive = true
+    const poll = async () => {
       try {
-        const v = JSON.parse(e.data)
-        v._k = ++seq.current
-        setFeed((f) => [v, ...f].slice(0, 50))
-        if (v.zone_id) setFlashes((z) => ({ ...z, [v.zone_id]: Date.now() }))
-      } catch { /* malformed relay entries are ignorable here */ }
-    })
-    return () => es.close()
+        const rows = await fetch('/api/violations/recent').then((r) => r.json())
+        if (!alive) return
+        setConnected(true)
+        // rows are newest-first; find ones we haven't shown yet
+        const fresh = []
+        for (const v of rows) {
+          if (!seenIds.current.has(v._id)) {
+            seenIds.current.add(v._id)
+            fresh.push(v)
+          }
+        }
+        if (fresh.length) {
+          setFeed((f) => [...fresh, ...f].slice(0, 50))
+          setFlashes((z) => {
+            const next = { ...z }
+            for (const v of fresh) if (v.zone_id) next[v.zone_id] = Date.now()
+            return next
+          })
+          // cap the seen-set so it doesn't grow forever
+          if (seenIds.current.size > 500) {
+            seenIds.current = new Set([...seenIds.current].slice(-200))
+          }
+        }
+      } catch { if (alive) setConnected(false) }
+    }
+    poll()
+    const t = setInterval(poll, 1500)
+    return () => { alive = false; clearInterval(t) }
   }, [])
 
-  useEffect(() => {                               // durable truth
+  // ---- durable truth: episodes, stats, topology ----
+  useEffect(() => {
     let alive = true
     const load = async () => {
       try {

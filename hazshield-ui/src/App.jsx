@@ -197,7 +197,7 @@ export default function App() {
       <header className="head">
         <h1 className="wordmark">HAZSHIELD <span className="wordmark-sub">CONTROL ROOM</span></h1>
         <Cascade stats={stats} />
-	<SimLauncher />
+        <SimLauncher operator={operator} />
         <AuthBar operator={operator} login={login} logout={logout} />
         <div className={`link ${connected ? 'up' : 'down'}`}>
           <span className="link-dot" />{connected ? 'LIVE' : 'RECONNECTING'}

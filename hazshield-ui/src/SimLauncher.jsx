@@ -1,23 +1,19 @@
 import React, { useState, useEffect } from 'react'
 
-// The simulation launcher: a button that opens a form with presets and a
-// bounded advanced mode. Reflects server truth (ready/running/cooldown)
-// and narrates what's happening in plain English while a plume runs.
 const PRESET_INFO = {
   gentle:    { label: 'Gentle',    desc: 'A stirring — mostly warnings, few criticals.' },
   realistic: { label: 'Realistic', desc: 'The real demo — warnings, criticals, AI plans.' },
   severe:    { label: 'Severe',    desc: 'Heavy cascade — many criticals, plans queueing.' },
 }
-
 const PHASE_TEXT = {
-  starting:   'Spinning up the plume simulator…',
+  starting:   'Spinning up the plume simulator...',
   baseline:   'Plant running normally. Thousands of sensor readings flowing every second — none dangerous yet.',
   igniting:   'A methane leak is starting in one zone. Gas sensors there are climbing toward their warning line.',
   escalating: 'The leak is now critical. Sensors have crossed the danger threshold — the system is opening incidents and the AI is writing isolation plans.',
   draining:   'Leak contained. The last isolation plans are finishing generation.',
 }
 
-export function SimLauncher() {
+export function SimLauncher({ operator }) {
   const [status, setStatus] = useState(null)
   const [open, setOpen] = useState(false)
   const [advanced, setAdvanced] = useState(false)
@@ -45,9 +41,7 @@ export function SimLauncher() {
 
   async function launch() {
     setMsg(null)
-    const body = advanced
-      ? { rate, duration, scenario }
-      : { preset }
+    const body = advanced ? { rate, duration, scenario } : { preset }
     try {
       const res = await fetch('/api/sim/start', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -61,7 +55,7 @@ export function SimLauncher() {
     } catch { setMsg('Network error.') }
   }
 
-  // ---- RUNNING: show the narration panel instead of the button ----
+  // RUNNING — visible to everyone (watch the story unfold)
   if (state === 'running') {
     const p = status.progress || {}
     const pct = p.duration_s ? Math.min(100, Math.round((p.elapsed_s / p.duration_s) * 100)) : 0
@@ -72,14 +66,13 @@ export function SimLauncher() {
           SIMULATION RUNNING
           <span className="sim-phase-tag">{(p.phase || 'running').toUpperCase()}</span>
         </div>
-        <p className="sim-story">{PHASE_TEXT[p.phase] || 'Simulation in progress…'}</p>
+        <p className="sim-story">{PHASE_TEXT[p.phase] || 'Simulation in progress...'}</p>
         <div className="sim-bar"><div className="sim-bar-fill" style={{ width: `${pct}%` }} /></div>
         <div className="sim-meta">{p.elapsed_s || 0}s / {p.duration_s || '?'}s · {p.scenario} · {p.rate}/s</div>
       </div>
     )
   }
 
-  // ---- COOLDOWN ----
   if (state === 'cooldown') {
     return (
       <div className="sim-cooldown">
@@ -89,26 +82,30 @@ export function SimLauncher() {
     )
   }
 
-  // ---- READY: the launcher button + form ----
+  // READY — the START action is gated to logged-in operators
+  if (!operator) {
+    return (
+      <div className="sim-launcher">
+        <span className="sim-gated">Log in to run a simulation</span>
+      </div>
+    )
+  }
+
   return (
     <div className="sim-launcher">
       {!open ? (
-        <button className="sim-cta" onClick={() => setOpen(true)}>
-          ▶ Run a Simulation
-        </button>
+        <button className="sim-cta" onClick={() => setOpen(true)}>▶ Run a Simulation</button>
       ) : (
         <div className="sim-form">
           <div className="sim-form-head">
             <span>Run a plume simulation</span>
             <button className="sim-x" onClick={() => setOpen(false)}>✕</button>
           </div>
-
           {!advanced ? (
             <div className="sim-presets">
               {Object.entries(PRESET_INFO).map(([key, info]) => (
-                <button key={key}
-                  className={`sim-preset ${preset === key ? 'sel' : ''}`}
-                  onClick={() => setPreset(key)}>
+                <button key={key} className={`sim-preset ${preset === key ? 'sel' : ''}`}
+                        onClick={() => setPreset(key)}>
                   <span className="sim-preset-label">{info.label}</span>
                   <span className="sim-preset-desc">{info.desc}</span>
                 </button>
@@ -119,13 +116,13 @@ export function SimLauncher() {
               <label className="sim-slider">
                 <span>Intensity (readings/sec): <b>{rate}</b></span>
                 <input type="range" min={bounds.rate[0]} max={bounds.rate[1]} step="100"
-                  value={rate} onChange={e => setRate(+e.target.value)} />
+                       value={rate} onChange={e => setRate(+e.target.value)} />
                 <span className="sim-slider-ends">{bounds.rate[0]} … {bounds.rate[1]}</span>
               </label>
               <label className="sim-slider">
                 <span>Duration (seconds): <b>{duration}</b></span>
                 <input type="range" min={bounds.duration[0]} max={bounds.duration[1]} step="5"
-                  value={duration} onChange={e => setDuration(+e.target.value)} />
+                       value={duration} onChange={e => setDuration(+e.target.value)} />
                 <span className="sim-slider-ends">{bounds.duration[0]} … {bounds.duration[1]}</span>
               </label>
               <label className="sim-scenario">
@@ -138,7 +135,6 @@ export function SimLauncher() {
               <p className="sim-bound-note">Values are capped to what the system can safely handle.</p>
             </div>
           )}
-
           <div className="sim-form-foot">
             <button className="sim-adv-toggle" onClick={() => setAdvanced(a => !a)}>
               {advanced ? '← Simple presets' : 'Advanced ⚙'}
@@ -152,7 +148,6 @@ export function SimLauncher() {
   )
 }
 
-// A compact legend so the tile colors mean something.
 export function Legend() {
   return (
     <div className="legend">

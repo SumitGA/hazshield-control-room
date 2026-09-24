@@ -161,7 +161,12 @@ class Service:
 
     # ---- SSE fan-out ----
     async def pump(self):
+        """One pub/sub subscription feeding N connected browsers.
+        Each iteration owns its connection and closes it cleanly on error,
+        so a hiccup can't leave a half-open listen() generator wedged."""
         while True:
+            r = None
+            ps = None
             try:
                 r = aredis.from_url(self.redis_url, decode_responses=True)
                 ps = r.pubsub()
@@ -172,14 +177,29 @@ class Service:
                     for q in list(self.clients):
                         if q.qsize() < 500:
                             q.put_nowait(msg["data"])
-            except Exception:
+            except Exception as e:
+                print(json.dumps({"msg": "pump error; reconnecting",
+                                  "error": f"{type(e).__name__}: {str(e)[:120]}"}))
+            finally:
+                try:
+                    if ps is not None:
+                        await ps.unsubscribe(CHANNEL)
+                        await ps.aclose()
+                except Exception:
+                    pass
+                try:
+                    if r is not None:
+                        await r.aclose()
+                except Exception:
+                    pass
                 await asyncio.sleep(2)
 
     async def events(self, request):
         resp = web.StreamResponse(headers={
             "Content-Type": "text/event-stream",
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no"})
+            "Cache-Control": "no-cache, no-transform",
+            "X-Accel-Buffering": "no",
+            "Content-Encoding": "identity"})
         await resp.prepare(request)
         q: asyncio.Queue = asyncio.Queue()
         self.clients.add(q)
@@ -227,6 +247,28 @@ class Service:
                 r["plan"] = json.loads(r["plan"])
         return web.json_response(rows, dumps=lambda o: json.dumps(o, default=str))
 
+    async def recent_violations(self, request):
+        """Poll-based live feed (SSE is buffered by Cloudflare). Returns
+        the tail of the violations stream — the browser polls this every
+        ~1.5s instead of holding a streamed connection."""
+        r = aredis.from_url(self.redis_url, decode_responses=True)
+        try:
+            # XREVRANGE returns newest-first; take the last 30
+            entries = await r.xrevrange(STREAM, count=30)
+        finally:
+            await r.aclose()
+        out = []
+        for entry_id, fields in entries:
+            v = fields.get("v")
+            if v:
+                try:
+                    d = json.loads(v)
+                    d["_id"] = entry_id
+                    out.append(d)
+                except ValueError:
+                    pass
+        return web.json_response(out)
+
     async def stats(self, request):
         r = aredis.from_url(self.redis_url, decode_responses=True)
         xlen, dlq = await r.xlen(STREAM), await r.xlen(DLQ)
@@ -255,6 +297,7 @@ class Service:
         app.router.add_get("/api/episodes", self.episodes)
         app.router.add_get("/api/plans/recent", self.recent_plans)
         app.router.add_get("/api/plans/{alarm_id}", self.plan)
+        app.router.add_get("/api/violations/recent", self.recent_violations)
         app.router.add_get("/api/stats", self.stats)
         app.router.add_get("/api/sim/status", self.sim_status)
         app.router.add_post("/api/sim/start", self.sim_start)
