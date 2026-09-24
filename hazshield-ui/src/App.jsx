@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useLive } from './useLive.js'
 import { SimLauncher, Legend } from './SimLauncher.jsx'
 import { PlansPanel } from './PlansPanel.jsx'
+import { RateChart } from './RateChart.jsx'
 import { AuthBar } from './AuthBar.jsx'
 import { useAuth } from './useAuth.js'
 
@@ -208,6 +209,7 @@ export default function App() {
               lampTest={lampTest} onPick={setPicked} />
         <Feed feed={feed} />
       </main>
+      {operator && <RateChart />}
       <PlansPanel onPick={setPicked} />
       <Board episodes={episodes} onPick={setPicked} picked={picked} />
       <PlanDrawer episode={picked} onClose={() => setPicked(null)} />

@@ -446,3 +446,9 @@ body {
 .main { align-items: start !important; }
 /* ensure the plans panel keeps its place regardless of feed length */
 .plans-panel { min-height: 0; }
+
+/* ===== violation rate chart (operators only) ===== */
+.rate-panel { padding: 20px 34px 24px; border-top: 1px solid var(--etch-dim); }
+.rate-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 8px; }
+.rate-sub { font-size: 11px; color: var(--muted); letter-spacing: .04em; }
+.rate-panel .recharts-cartesian-axis-tick text { font-family: var(--mono, monospace); }

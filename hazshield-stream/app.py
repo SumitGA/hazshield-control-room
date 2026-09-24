@@ -269,6 +269,45 @@ class Service:
                     pass
         return web.json_response(out)
 
+    async def violations_rate(self, request):
+        """Per-second violation rate for the last ~90s, split warn/critical.
+        Drives the live rate chart. Reads the stream tail, buckets by second."""
+        import time as _t
+        r = aredis.from_url(self.redis_url, decode_responses=True)
+        try:
+            entries = await r.xrevrange(STREAM, count=4000)
+        finally:
+            await r.aclose()
+        now = int(_t.time())
+        window = 90
+        buckets = {}
+        for entry_id, fields in entries:
+            v = fields.get("v")
+            if not v:
+                continue
+            try:
+                d = json.loads(v)
+            except ValueError:
+                continue
+            try:
+                ms = int(entry_id.split("-")[0])
+            except (ValueError, IndexError):
+                continue
+            sec = ms // 1000
+            age = now - sec
+            if age < 0 or age >= window:
+                continue
+            b = buckets.setdefault(sec, {"warn": 0, "critical": 0})
+            sev = d.get("severity", "warn")
+            if sev in b:
+                b[sev] += 1
+        series = []
+        for age in range(window - 1, -1, -1):
+            sec = now - age
+            b = buckets.get(sec, {"warn": 0, "critical": 0})
+            series.append({"t": -age, "warn": b["warn"], "critical": b["critical"]})
+        return web.json_response(series)
+
     async def stats(self, request):
         r = aredis.from_url(self.redis_url, decode_responses=True)
         xlen, dlq = await r.xlen(STREAM), await r.xlen(DLQ)
@@ -298,6 +337,7 @@ class Service:
         app.router.add_get("/api/plans/recent", self.recent_plans)
         app.router.add_get("/api/plans/{alarm_id}", self.plan)
         app.router.add_get("/api/violations/recent", self.recent_violations)
+        app.router.add_get("/api/violations/rate", self.violations_rate)
         app.router.add_get("/api/stats", self.stats)
         app.router.add_get("/api/sim/status", self.sim_status)
         app.router.add_post("/api/sim/start", self.sim_start)

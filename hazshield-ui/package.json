@@ -3,12 +3,16 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "scripts": { "dev": "vite", "build": "vite build" },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
   "dependencies": {
+    "@fontsource/barlow-condensed": "^5.0.0",
+    "@fontsource/ibm-plex-mono": "^5.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "@fontsource/barlow-condensed": "^5.0.0",
-    "@fontsource/ibm-plex-mono": "^5.0.0"
+    "recharts": "^3.10.1"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.0",
