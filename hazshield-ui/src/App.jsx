@@ -14,6 +14,16 @@ function lamp(zoneEpisodes) {
   return 'warn'
 }
 
+const isCritical = (e) => e.state === 'escalated' || e.severity === 'critical'
+const hasPlan = (e) => e.plan_status === 'ready' || e.plan_status === 'fallback'
+
+// The episode "view plan" opens for a zone: the one the lamp colour is about.
+// A plan that's ready first, then critical/escalated, then the highest peak.
+function mostImportant(eps) {
+  const rank = (e) => (hasPlan(e) ? 2 : 0) + (isCritical(e) ? 1 : 0)
+  return [...eps].sort((a, b) => rank(b) - rank(a) || b.peak_value - a.peak_value)[0]
+}
+
 function Cascade({ stats }) {
   if (!stats) return null
   const cells = [
@@ -60,7 +70,7 @@ function Wall({ topology, episodes, flashes, lampTest, onPick }) {
                 <button
                   key={z.zone_id}
                   className={`tile ${lampTest ? 'lamp-test' : lamp(eps)} ${hit ? 'hit' : ''} ${planning ? 'planning' : ''}`}
-                  onClick={() => eps.length && onPick(eps[0])}
+                  onClick={() => eps.length && onPick(mostImportant(eps))}
                   title={`${z.name} · ${z.sensors} sensors`}
                 >
                   <span className="tile-name">{z.name}</span>
@@ -140,21 +150,46 @@ function PlanDrawer({ episode, onClose }) {
   const [state, setState] = useState('loading')
   useEffect(() => {
     if (!episode) return
+    let stop = false
+    let timer
+    const load = () =>
+      fetch(`/api/plans/${episode.alarm_id}`)
+        .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+        .then((p) => { if (!stop) { setPlan(p); setState('ok') } })
+        .catch(() => {
+          if (stop) return
+          setState('none')
+          // a critical episode's plan may still be on its way: look again shortly
+          if (isCritical(episode)) timer = setTimeout(load, 3000)
+        })
     setState('loading'); setPlan(null)
-    fetch(`/api/plans/${episode.alarm_id}`)
-      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
-      .then((p) => { setPlan(p); setState('ok') })
-      .catch(() => setState('none'))
+    load()
+    return () => { stop = true; clearTimeout(timer) }
   }, [episode])
   if (!episode) return null
+  const known = episode.state !== undefined || episode.severity !== undefined
+  const writing = episode.plan_status === 'pending' || episode.plan_status === 'generating'
+  const noPlan = !known
+    ? 'no plan found for this episode.'
+    : !isCritical(episode)
+      ? 'warning level, being watched. plans are written once a sensor reaches critical.'
+      : writing
+        ? 'the plan is being written…'
+        : 'no plan yet. it will show here as soon as it is written.'
   return (
     <div className="drawer" role="dialog" aria-label="isolation plan">
       <div className="drawer-head">
         <h2 className="panel-title">isolation plan · {episode.zone_name}</h2>
         <button className="close" onClick={onClose} aria-label="close">✕</button>
       </div>
+      {known && (
+        <div className="drawer-sub">
+          {episode.sensor_kind || 'sensor'} · {isCritical(episode) ? 'critical' : 'warning'}
+          {episode.peak_value != null && ` · peak ${Math.round(episode.peak_value)}`}
+        </div>
+      )}
       {state === 'loading' && <div className="empty">fetching plan…</div>}
-      {state === 'none' && <div className="empty">no plan for this episode. warn-level episodes are watchlist only.</div>}
+      {state === 'none' && <div className="empty">{noPlan}</div>}
       {plan && (
         <>
           <div className="plan-meta">
